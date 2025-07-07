@@ -1,15 +1,31 @@
+import re
 import logging
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 
 from services.translator import translate_to_english
 from services.rewriter import rewrite_professionally
-from services.journalist_verifier import is_trusted_journalist_from_text
+from services.journalist_verifier import extract_and_translate_name
 from utils.text_utils import escape_html
 from utils.rate_limiter import is_rate_limited
 from config import TELEGRAM_CHANNEL
 
 logger = logging.getLogger(__name__)
+
+def clean_and_format(rewritten: str, source: str, channel: str) -> str:
+    """
+    Cleans the AI-rewritten text by removing any leading 🚨📢 name: prefix,
+    then formats the message with a single 🚨 emoji, the cleaned text,
+    source attribution, and channel tag.
+    """
+    # Remove any leading "🚨📢 Name: " or similar prefix
+    cleaned = re.sub(r"^🚨📢?\s*[^:]{2,40}:\s*", "", rewritten.strip())
+
+    return (
+        f"🚨 {escape_html(cleaned)}\n\n"
+        f"Source : {escape_html(source)}\n"
+        f"{channel}"
+    )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
@@ -32,18 +48,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await message.reply_text("✍️ Rewriting professionally...")
     rewritten = await rewrite_professionally(english_text)
 
-    # ✅ Automatically detect journalist using AI
-    source = await is_trusted_journalist_from_text(english_text) or ""
+    # ✅ Automatically extract + translate speaker's name
+    source = await extract_and_translate_name(text)
+    if not source:
+        source = "Unknown"
 
-    # 🧼 Clean output for Telegram (escape special characters)
-    safe_rewritten = escape_html(rewritten)
-    safe_source = escape_html(source)
-
-    final_text = f"🚨📢 {safe_rewritten}"
-    if source:
-        final_text += f"\n\n📎 Source : {safe_source}\n🔁 @FootballEdge0"
-    else:
-        final_text += "\n\n🔁 @FootballEdge0"
+    # 🧼 Final clean format
+    final_text = clean_and_format(rewritten, source, "@FootballEdge0")
 
     try:
         if message.photo:
