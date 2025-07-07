@@ -1,21 +1,33 @@
-from services.role_extractor import extract_roles
+import re
+import emoji
+from services.translator import translate_to_english
 
-TRUSTED_JOURNALISTS = [
-    "fabrizio romano", "ashraf ben ayad", "david ornstein",
-    "جيانلوكا دي مارزيو", "فابريزيو رومانو", "gerard romero",
-    "santi aouna", "nicolò schira", "نيكولو شيرا"
-]
+def remove_emojis(text: str) -> str:
+    return emoji.replace_emoji(text, replace='')
 
-async def is_trusted_journalist_from_text(text: str) -> str | None:
-    """
-    Extract journalist name from the text using AI and check if it's trusted.
-    Returns the journalist name if trusted, otherwise None.
-    """
-    roles = await extract_roles(text)
-    name = roles.get("journalist", "").strip().lower()
+async def extract_and_translate_name(text: str) -> str:
+    match = re.match(r"^([^\n:：]{2,40})\s*[:：]", text.strip())
+    if not match:
+        print("❌ No name matched.")
+        return ""
 
-    for trusted in TRUSTED_JOURNALISTS:
-        if trusted.lower() in name:
-            return name
+    name_raw = match.group(1).strip()
+    name_clean = remove_emojis(name_raw).strip()
 
-    return None
+    print(f"🔍 Raw name: {name_raw}")
+    print(f"🔍 Clean name: {name_clean}")
+
+    try:
+        translated = await translate_to_english(name_clean)
+        print(f"🧠 Translated name: {translated}")
+
+        if translated == name_clean:
+            translated_retry = await translate_to_english(name_clean)
+            print(f"🔁 Retry translation: {translated_retry}")
+            return translated_retry.strip()
+
+        return translated.strip()
+
+    except Exception as e:
+        print(f"⚠️ Translation error: {e}")
+        return name_clean
