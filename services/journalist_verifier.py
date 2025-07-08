@@ -1,6 +1,7 @@
 import re
 import emoji
 from services.translator import translate_to_english
+from services.groq_service import translate_name_with_groq
 
 def remove_emojis(text: str) -> str:
     return emoji.replace_emoji(text, replace='')
@@ -21,10 +22,11 @@ async def extract_and_translate_name(text: str) -> str:
         translated = await translate_to_english(name_clean)
         print(f"🧠 Translated name: {translated}")
 
+        # If LibreTranslate failed (returned the same), fallback to Groq
         if translated == name_clean:
-            translated_retry = await translate_to_english(name_clean)
-            print(f"🔁 Retry translation: {translated_retry}")
-            return translated_retry.strip()
+            groq_result = await translate_name_with_groq(name_clean)
+            print(f"🔁 Groq fallback: {groq_result}")
+            return groq_result.strip()
 
         return translated.strip()
 
