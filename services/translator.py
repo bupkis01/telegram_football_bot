@@ -3,8 +3,8 @@ from services.groq_service import translate_name_with_groq
 
 async def translate_to_english(text: str) -> str:
     """
-    Try LibreTranslate first; if it returns the same text (i.e. fails on names),
-    fall back to Groq-based transliteration.
+    Try LibreTranslate first. If it doesn't translate (returns same text),
+    fall back to Groq to improve quality.
     """
     url = "https://libretranslate.de/translate"
     payload = {
@@ -16,18 +16,17 @@ async def translate_to_english(text: str) -> str:
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            # First pass
             resp = await client.post(url, json=payload)
             if resp.status_code == 200:
                 out = resp.json().get("translatedText", text).strip()
                 if out == text.strip():
-                    # fallback on names
+                    # Try Groq fallback
                     groq_out = await translate_name_with_groq(text)
                     return groq_out or out
                 return out
     except Exception as e:
         print(f"Translation failed: {e}")
 
-    # final fallback
+    # Final fallback
     groq_out = await translate_name_with_groq(text)
     return groq_out or text.strip()
