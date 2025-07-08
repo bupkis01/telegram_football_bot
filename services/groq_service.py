@@ -5,9 +5,6 @@ from config import GROQ_API_KEY, GROQ_MODEL
 logger = logging.getLogger(__name__)
 
 async def call_groq(prompt: str) -> str:
-    """
-    Used by rewriter.py to rewrite full messages.
-    """
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(
@@ -31,12 +28,9 @@ async def call_groq(prompt: str) -> str:
     return None
 
 async def translate_name_with_groq(name: str) -> str:
-    """
-    Used by translator.py to transliterate / translate short names.
-    """
     prompt = (
-        "Translate this personal name into proper English spelling, "
-        "and return only the name, no other text:\n"
+        "Translate this personal name into proper English spelling only. "
+        "Only give the name:\n"
         f"{name}"
     )
     try:
@@ -50,7 +44,7 @@ async def translate_name_with_groq(name: str) -> str:
                 json={
                     "model": GROQ_MODEL,
                     "messages": [
-                        {"role": "system", "content": "You are an expert in transliterating names."},
+                        {"role": "system", "content": "You are a name transliteration assistant."},
                         {"role": "user", "content": prompt}
                     ],
                     "temperature": 0.2
