@@ -1,11 +1,7 @@
 import httpx
-from services.groq_service import translate_name_with_groq
+from services.groq_service import translate_name_with_groq  # Keep this for journalist_verifier.py
 
 async def translate_to_english(text: str) -> str:
-    """
-    Try LibreTranslate first. If it doesn't translate (returns same text),
-    fall back to Groq to improve quality.
-    """
     url = "https://libretranslate.de/translate"
     payload = {
         "q": text,
@@ -19,14 +15,13 @@ async def translate_to_english(text: str) -> str:
             resp = await client.post(url, json=payload)
             if resp.status_code == 200:
                 out = resp.json().get("translatedText", text).strip()
+
+                # If LibreTranslate didn’t change it, just keep the original text
                 if out == text.strip():
-                    # Try Groq fallback
-                    groq_out = await translate_name_with_groq(text)
-                    return groq_out or out
+                    return out
+
                 return out
     except Exception as e:
         print(f"Translation failed: {e}")
 
-    # Final fallback
-    groq_out = await translate_name_with_groq(text)
-    return groq_out or text.strip()
+    return text.strip()  # Final fallback
