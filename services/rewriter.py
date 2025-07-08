@@ -1,6 +1,11 @@
 import re
 from services.groq_service import call_groq
 
+BAD_PREFIXES = [
+    "Here is the rewritten", "Rewritten text", "Sure,", "Of course,",
+    "The rewritten version is", "Here’s", "Here is"
+]
+
 async def rewrite_professionally(text: str) -> str:
     """
     Rewrites the input text into 1–2 short, factual sentences for Telegram.
@@ -22,9 +27,17 @@ async def rewrite_professionally(text: str) -> str:
 
     result = await call_groq(prompt)
     if result:
-        # Collapse whitespace and return
-        return re.sub(r"\s+", " ", result.strip())
+        result = result.strip()
 
-    # If the AI call fails or returns nothing, fall back to the first two lines of the original
+        # 🚫 Remove assistant-style intros
+        for prefix in BAD_PREFIXES:
+            if result.lower().startswith(prefix.lower()):
+                result = result.split(":", 1)[-1].strip()
+                break  # Remove only one match, then stop
+
+        # 🧼 Normalize whitespace
+        return re.sub(r"\s+", " ", result)
+
+    # 🧯 Fallback: Use first 2 lines of the original
     lines = cleaned.splitlines()
     return " ".join(lines[:2]).strip()
