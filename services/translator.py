@@ -1,6 +1,11 @@
 import httpx
+from services.groq_service import translate_name_with_groq
 
 async def translate_to_english(text: str) -> str:
+    """
+    Try LibreTranslate first; if it returns the same text (i.e. fails on names),
+    fall back to Groq-based transliteration.
+    """
     url = "https://libretranslate.de/translate"
     payload = {
         "q": text,
@@ -11,20 +16,18 @@ async def translate_to_english(text: str) -> str:
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            # 🔁 First try
-            response = await client.post(url, json=payload)
-            if response.status_code == 200:
-                translated = response.json().get("translatedText", text).strip()
-
-                # 🔁 Retry once with same payload if untranslated
-                if translated == text.strip():
-                    retry_response = await client.post(url, json=payload)
-                    if retry_response.status_code == 200:
-                        translated_retry = retry_response.json().get("translatedText", text).strip()
-                        return translated_retry
-
-                return translated
+            # First pass
+            resp = await client.post(url, json=payload)
+            if resp.status_code == 200:
+                out = resp.json().get("translatedText", text).strip()
+                if out == text.strip():
+                    # fallback on names
+                    groq_out = await translate_name_with_groq(text)
+                    return groq_out or out
+                return out
     except Exception as e:
         print(f"Translation failed: {e}")
 
-    return text.strip()  # fallback
+    # final fallback
+    groq_out = await translate_name_with_groq(text)
+    return groq_out or text.strip()
