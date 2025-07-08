@@ -19,8 +19,7 @@ def clean_and_format(rewritten: str, source: str, channel: str) -> str:
     source attribution, and channel tag.
     """
     # Remove any leading "🚨📢 Name: " or similar prefix
-    cleaned = re.sub(r"^🚨📢?\s*[^:]{2,40}:\s*", "", rewritten.strip())
-
+    cleaned = re.sub(r"^[^:]{2,40}:\s*", "", rewritten.strip())
     return (
         f"🚨 {escape_html(cleaned)}\n\n"
         f"Source : {escape_html(source)}\n"
